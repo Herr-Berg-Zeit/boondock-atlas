@@ -172,6 +172,20 @@ const els = {
   routeStatusBadge: document.getElementById('routeStatusBadge')
 };
 
+
+const ui = {
+  controlDrawer: document.getElementById('controlDrawer'),
+  drawerTitle: document.getElementById('drawerTitle'),
+  drawerToggleBtn: document.getElementById('drawerToggleBtn'),
+  closeDrawerBtn: document.getElementById('closeDrawerBtn'),
+  siteSheet: document.getElementById('siteSheet'),
+  closeSiteSheetBtn: document.getElementById('closeSiteSheetBtn'),
+  paneButtons: Array.from(document.querySelectorAll('[data-open-pane]')),
+  drawerTabs: Array.from(document.querySelectorAll('.drawer-tab')),
+  dockButtons: Array.from(document.querySelectorAll('.dock-btn[data-open-pane]')),
+  panes: Array.from(document.querySelectorAll('.drawer-pane'))
+};
+
 const siteTemplate = document.getElementById('siteCardTemplate');
 
 const state = {
@@ -185,6 +199,8 @@ const state = {
   trip: loadStoredList(STORAGE_KEYS.trip),
   favorites: loadStoredList(STORAGE_KEYS.favorites),
   selectedSiteId: null,
+  activePane: 'explore',
+  drawerOpen: window.innerWidth > 1120,
   liveStatus: 'loading',
   lastFetchKey: '',
   fetchSequence: 0,
@@ -206,6 +222,7 @@ const state = {
 initialize();
 
 async function initialize() {
+  setupDrawerUi();
   attachUiEvents();
   hydrateRouteControls();
   await loadFallbackData();
@@ -218,6 +235,84 @@ async function initialize() {
   registerServiceWorker();
   applyFilters();
   debouncedLiveRefresh(true)();
+}
+
+
+function setupDrawerUi() {
+  setDrawerOpen(state.drawerOpen);
+  setActivePane(state.activePane, { forceOpen: state.drawerOpen });
+
+  ui.paneButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const pane = button.dataset.openPane;
+      setActivePane(pane, { forceOpen: true });
+    });
+  });
+
+  ui.drawerToggleBtn?.addEventListener('click', () => {
+    setDrawerOpen(!state.drawerOpen);
+  });
+
+  ui.closeDrawerBtn?.addEventListener('click', () => setDrawerOpen(false));
+  ui.closeSiteSheetBtn?.addEventListener('click', closeSiteSheet);
+
+  window.addEventListener('resize', debounce(() => {
+    if (window.innerWidth <= 1120 && state.drawerOpen) {
+      setDrawerOpen(false);
+      return;
+    }
+    if (window.innerWidth > 1120 && !state.drawerOpen) {
+      setDrawerOpen(true);
+    }
+  }, 120));
+}
+
+function setDrawerOpen(isOpen) {
+  state.drawerOpen = isOpen;
+  ui.controlDrawer?.classList.toggle('is-collapsed', !isOpen);
+  ui.controlDrawer?.classList.toggle('is-open', isOpen);
+  if (ui.drawerToggleBtn) {
+    ui.drawerToggleBtn.textContent = isOpen ? 'Hide' : 'Show';
+    ui.drawerToggleBtn.classList.toggle('is-active', isOpen);
+  }
+}
+
+function setActivePane(pane, { forceOpen = false } = {}) {
+  state.activePane = pane;
+  const titles = {
+    explore: 'Explore sites',
+    layers: 'Layers and data',
+    route: 'Route planning',
+    saved: 'Saved places'
+  };
+
+  ui.drawerTitle && (ui.drawerTitle.textContent = titles[pane] || 'Workspace');
+
+  ui.panes.forEach((panel) => {
+    panel.classList.toggle('is-active', panel.dataset.pane === pane);
+  });
+
+  ui.drawerTabs.forEach((button) => {
+    const active = button.dataset.openPane === pane;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-selected', active ? 'true' : 'false');
+  });
+
+  ui.dockButtons.forEach((button) => {
+    button.classList.toggle('is-active', button.dataset.openPane === pane);
+  });
+
+  if (forceOpen) {
+    setDrawerOpen(true);
+  }
+}
+
+function openSiteSheet() {
+  ui.siteSheet?.classList.add('is-open');
+}
+
+function closeSiteSheet() {
+  ui.siteSheet?.classList.remove('is-open');
 }
 
 function attachUiEvents() {
@@ -710,10 +805,8 @@ function renderSites() {
     const meta = node.querySelector('.site-meta');
     const entries = [
       ['Source', site.sourceBadge],
-      ['Water', site.water ? 'Yes' : 'Unknown / no'],
-      ['Toilets', site.toilets ? 'Yes' : 'Unknown / no'],
       ['Access', site.roadLabel],
-      ['Reservations', site.reservation],
+      ['Water', site.water ? 'Yes' : 'Unknown / no'],
       ['Updated', site.lastUpdated]
     ];
 
@@ -790,6 +883,7 @@ function selectSite(siteId) {
     els.selectedSitePanel.className = 'detail-panel empty-state';
     els.selectedSitePanel.textContent = 'That site is no longer in memory for the current session.';
     els.selectedSourceBadge.textContent = 'Unavailable';
+    openSiteSheet();
     return;
   }
 
@@ -828,7 +922,10 @@ function selectSite(siteId) {
       ${site.phone ? `<a href="tel:${escapeAttribute(site.phone)}">Call</a>` : ''}
     </div>
   `;
+
+  openSiteSheet();
 }
+
 
 function updateStats() {
   els.visibleCount.textContent = state.visibleSites.length;
@@ -918,6 +1015,7 @@ function resetFilters() {
   els.selectedSitePanel.className = 'detail-panel empty-state';
   els.selectedSitePanel.textContent = 'Click a site card or map marker to inspect details, links, and trip actions.';
   els.selectedSourceBadge.textContent = 'Nothing selected';
+  closeSiteSheet();
   applyFilters();
 }
 
@@ -1804,5 +1902,7 @@ window.boondockAtlas = {
   copyCoords,
   setRoutePointFromSite,
   clearRoute,
-  buildRoute
+  buildRoute,
+  closeSiteSheet
 };
+
