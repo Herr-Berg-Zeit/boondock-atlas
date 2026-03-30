@@ -1,0 +1,1 @@
+window.BOONDOCK_ATLAS_CONFIG = window.BOONDOCK_ATLAS_CONFIG || {};

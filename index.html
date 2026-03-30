@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Boondock Atlas Live</title>
+    <meta
+      name="description"
+      content="Open-source campground and boondocking finder with live map layers, public-land overlays, favorites, trip planning, and optional FCC coverage imports."
+    />
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Open-source camping map</p>
+          <h1>Boondock Atlas Live</h1>
+          <p class="subhead">
+            A GitHub Pages-ready campground and boondocking finder inspired by the map-layer workflow people loved in FreeRoam, rebuilt as an original project.
+          </p>
+        </div>
+        <div class="header-actions">
+          <button id="locateBtn" class="secondary-btn">Find me</button>
+          <button id="refreshLiveBtn" class="secondary-btn">Refresh live data</button>
+          <button id="resetBtn" class="primary-btn">Reset</button>
+        </div>
+      </header>
+
+      <section class="toolbar">
+        <label class="search-wrap">
+          <span>Search</span>
+          <input id="searchInput" type="search" placeholder="Search campsites, states, tags, amenities..." />
+        </label>
+
+        <label>
+          <span>Type</span>
+          <select id="typeFilter">
+            <option value="all">All</option>
+            <option value="Dispersed / Primitive">Dispersed / Primitive</option>
+            <option value="Campground">Campground</option>
+            <option value="RV Park / Caravan Site">RV Park / Caravan Site</option>
+            <option value="Fallback demo site">Fallback demo site</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Price</span>
+          <select id="priceFilter">
+            <option value="all">Any</option>
+            <option value="free">Free only</option>
+            <option value="paid">Paid / unknown ok</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Amenities</span>
+          <select id="waterFilter">
+            <option value="all">Any</option>
+            <option value="water">Water available</option>
+            <option value="toilets">Toilets available</option>
+            <option value="showers">Showers available</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Surface access</span>
+          <select id="roadFilter">
+            <option value="all">Any</option>
+            <option value="easy">Mostly easy access</option>
+            <option value="rough">Likely rough / primitive</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="status-strip">
+        <div class="status-card">
+          <strong id="statusLive">Starting…</strong>
+          <span>Live site feed</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusBounds">—</strong>
+          <span>Current map view</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusCoverage">No import</strong>
+          <span>Cell coverage layer</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusLastSync">Not synced yet</strong>
+          <span>Last synced</span>
+        </div>
+        <div class="status-card">
+          <strong id="statusSources">OSM + official maps</strong>
+          <span>Primary sources</span>
+        </div>
+      </section>
+
+      <main class="workspace">
+        <aside class="panel left-panel">
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Map layers</h2>
+              <span class="count-pill">Live</span>
+            </div>
+            <div class="layer-grid">
+              <label class="layer-card"><input type="checkbox" id="layerBlm" checked /> BLM public land</label>
+              <label class="layer-card"><input type="checkbox" id="layerUsfs" checked /> USFS boundaries</label>
+              <label class="layer-card"><input type="checkbox" id="layerLiveSites" checked /> Live campsites</label>
+              <label class="layer-card"><input type="checkbox" id="layerCellCoverage" checked /> Imported cell coverage</label>
+              <label class="layer-card"><input type="checkbox" id="layerRoute" checked /> Route line</label>
+              <label class="layer-card"><input type="checkbox" id="layerClearance" checked /> Clearance warnings</label>
+              <label class="layer-card"><input type="checkbox" id="layerWater" checked /> Water</label>
+              <label class="layer-card"><input type="checkbox" id="layerDump" checked /> Dump stations</label>
+              <label class="layer-card"><input type="checkbox" id="layerPropane" checked /> Propane</label>
+              <label class="layer-card"><input type="checkbox" id="layerGroceries" checked /> Groceries</label>
+            </div>
+            <div class="legend">
+              <div><span class="swatch swatch-blm"></span>BLM overlay</div>
+              <div><span class="swatch swatch-usfs"></span>USFS overlay</div>
+              <div><span class="swatch swatch-site"></span>Live campsite</div>
+              <div><span class="swatch swatch-fallback"></span>Fallback demo site</div>
+              <div><span class="swatch swatch-coverage"></span>Imported cell coverage</div>
+              <div><span class="swatch swatch-route"></span>Route line</div>
+              <div><span class="swatch swatch-warning"></span>Clearance warning</div>
+            </div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Coverage import</h2>
+              <span class="count-pill">Optional</span>
+            </div>
+            <p class="helper-text">
+              Drop a GeoJSON file converted from FCC mobile broadband coverage data to render a real carrier layer on the map.
+            </p>
+            <label class="upload-box" for="coverageFileInput">
+              <input id="coverageFileInput" type="file" accept=".geojson,.json,application/geo+json,application/json" />
+              <strong>Import coverage GeoJSON</strong>
+              <span>Works with local files or a `data/cell_coverage.geojson` file in the repo.</span>
+            </label>
+            <button id="clearCoverageBtn" class="text-btn">Clear imported coverage</button>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Route planner</h2>
+              <span id="routeStatusBadge" class="count-pill">No route</span>
+            </div>
+            <p class="helper-text">Uses Mapbox Directions with optional height, width, and weight limits. Set route points from your location or the selected site.</p>
+            <label>
+              <span>Mapbox public token</span>
+              <input id="mapboxTokenInput" type="text" placeholder="pk.ey..." autocomplete="off" spellcheck="false" />
+            </label>
+            <div class="inline-actions">
+              <button id="saveTokenBtn" class="secondary-btn">Save token</button>
+              <button id="clearTokenBtn" class="text-btn">Clear token</button>
+            </div>
+            <div class="route-endpoints">
+              <div class="saved-item compact-card">
+                <strong>Start</strong>
+                <p id="routeStartLabel">Not set</p>
+              </div>
+              <div class="saved-item compact-card">
+                <strong>Destination</strong>
+                <p id="routeEndLabel">Not set</p>
+              </div>
+            </div>
+            <div class="inline-actions">
+              <button id="useLocationStartBtn" class="secondary-btn">Use my location as start</button>
+              <button id="clearRoutePointsBtn" class="text-btn">Clear points</button>
+            </div>
+            <label class="checkbox-inline">
+              <input id="includeTripWaypoints" type="checkbox" />
+              <span>Route through saved trip stops in their current order</span>
+            </label>
+            <div class="vehicle-grid">
+              <label>
+                <span>Height (ft)</span>
+                <input id="vehicleHeightInput" type="number" min="0" step="0.1" placeholder="11.5" />
+              </label>
+              <label>
+                <span>Width (ft)</span>
+                <input id="vehicleWidthInput" type="number" min="0" step="0.1" placeholder="8.5" />
+              </label>
+              <label>
+                <span>Weight (tons)</span>
+                <input id="vehicleWeightInput" type="number" min="0" step="0.1" placeholder="6.0" />
+              </label>
+            </div>
+            <div class="inline-actions">
+              <button id="buildRouteBtn" class="primary-btn">Build route</button>
+              <button id="clearRouteBtn" class="secondary-btn">Clear route</button>
+            </div>
+            <div id="routeSummary" class="empty-state">No route yet. Save a Mapbox public token, then set a start and destination.</div>
+            <ul id="routeWarningsList" class="saved-list"></ul>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Trip planner</h2>
+              <button id="clearTripBtn" class="text-btn">Clear</button>
+            </div>
+            <p class="helper-text">Save interesting stops while scouting.</p>
+            <ul id="tripList" class="saved-list"></ul>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Favorites</h2>
+              <button id="clearFavoritesBtn" class="text-btn">Clear</button>
+            </div>
+            <ul id="favoritesList" class="saved-list"></ul>
+          </section>
+        </aside>
+
+        <section class="map-column">
+          <div class="stats-row">
+            <div class="stat-card">
+              <strong id="visibleCount">0</strong>
+              <span>Visible sites</span>
+            </div>
+            <div class="stat-card">
+              <strong id="freeCount">0</strong>
+              <span>Free / fee=no</span>
+            </div>
+            <div class="stat-card">
+              <strong id="liveCount">0</strong>
+              <span>Live OSM sites</span>
+            </div>
+          </div>
+          <div class="map-shell">
+            <div id="map"></div>
+            <div id="mapSyncBadge" class="map-sync-badge">Last sync: waiting</div>
+          </div>
+          <div class="map-footnote">
+            Zoom to 8+ for live campsite and resource loading. Wide views fall back to sample data so the app stays responsive.
+          </div>
+        </section>
+
+        <aside class="panel right-panel">
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Results</h2>
+              <span id="resultLabel" class="count-pill">0 sites</span>
+            </div>
+            <div id="siteList" class="site-list"></div>
+          </section>
+
+          <section class="panel-section">
+            <div class="section-head">
+              <h2>Selected site</h2>
+              <span id="selectedSourceBadge" class="count-pill">Nothing selected</span>
+            </div>
+            <div id="selectedSitePanel" class="detail-panel empty-state">
+              Click a site card or map marker to inspect details, links, and trip actions.
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <template id="siteCardTemplate">
+      <article class="site-card">
+        <div class="site-card-top">
+          <div>
+            <h3 class="site-title"></h3>
+            <p class="site-subtitle"></p>
+          </div>
+          <span class="price-badge"></span>
+        </div>
+        <div class="tag-row"></div>
+        <p class="site-description"></p>
+        <dl class="site-meta"></dl>
+        <div class="site-actions">
+          <button class="primary-btn focus-btn">Show on map</button>
+          <button class="secondary-btn trip-btn">Add to trip</button>
+          <button class="secondary-btn favorite-btn">Favorite</button>
+        </div>
+      </article>
+    </template>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/esri-leaflet@3.0.14/dist/esri-leaflet.js"></script>
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
