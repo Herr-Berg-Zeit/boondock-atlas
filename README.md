@@ -2,7 +2,8 @@
 
 Boondock Atlas Live is an original, GitHub Pages-ready campground and boondocking finder inspired by the layered map workflow campers loved in FreeRoam.
 
-It is **not** a copy of FreeRoam's code, data, branding, screenshots, or proprietary assets.
+This was built to be similar to the FreeRoam app that was popular a few years ago, but not an exact copy. Data, branding, screenshots, or proprietary assets are all different for this site.
+I am not a programmer by trade, so if any of this looks weird, that's why.
 
 ## What this version does
 
